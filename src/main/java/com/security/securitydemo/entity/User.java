@@ -1,5 +1,7 @@
 package com.security.securitydemo.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,4 +28,10 @@ public class User {
     
     @Enumerated(EnumType.STRING)
     private Role role;
+    
+    private int failedAttempts;
+
+    private boolean accountLocked;
+
+    private LocalDateTime lockTime;
 }

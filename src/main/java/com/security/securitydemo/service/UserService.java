@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 import com.security.securitydemo.dto.RefreshRequest;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,9 @@ public class UserService {
     
     private final BlacklistedTokenRepository blacklistedTokenRepository;
 
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+
+    private static final long LOCK_DURATION_MINUTES = 15;
     // REGISTER
     public void register(String username, String password) {
 
@@ -54,6 +58,31 @@ public class UserService {
         userRepository.save(user);
     }
 
+    private boolean unlockWhenTimeExpired(User user) {
+
+        if (user.getLockTime() == null) {
+            return false;
+        }
+
+        return user.getLockTime()
+                .plusMinutes(LOCK_DURATION_MINUTES)
+                .isBefore(LocalDateTime.now());
+    }
+    
+    private void increaseFailedAttempts(User user) {
+
+        int attempts = user.getFailedAttempts() + 1;
+
+        user.setFailedAttempts(attempts);
+
+        if (attempts >= MAX_FAILED_ATTEMPTS) {
+            user.setAccountLocked(true);
+            user.setLockTime(LocalDateTime.now());
+        }
+
+        userRepository.save(user);
+    }
+    
     // LOGIN
     public AuthResponse login(String username, String password) {
 
@@ -84,13 +113,30 @@ public class UserService {
     	 User user = userRepository.findByUsername(username)
     	            .orElseThrow(() -> new RuntimeException("User not found"));
 
+    	 		if (user.isAccountLocked()) {
+    	 			if (unlockWhenTimeExpired(user)) {
+    	 				user.setAccountLocked(false);
+    	 				user.setFailedAttempts(0);
+    	 				user.setLockTime(null);
+    	 				userRepository.save(user);
+    		    } 
+    	 		else {
+    		        throw new RuntimeException("Account locked. Try later.");
+    		    }
+    		}
     	    if (!passwordEncoder.matches(password, user.getPassword())) {
+    	    	increaseFailedAttempts(user);
     	        throw new RuntimeException("Invalid password");
     	    }
 
     	    String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
     	    String refreshToken = createRefreshToken(user.getUsername());
 
+    	    user.setFailedAttempts(0);
+    	    user.setAccountLocked(false);
+    	    user.setLockTime(null);
+
+    	    userRepository.save(user);
     	    return new AuthResponse(accessToken, refreshToken);
     }
     
