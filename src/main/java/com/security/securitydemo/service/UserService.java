@@ -1,0 +1,152 @@
+package com.security.securitydemo.service;
+
+import com.security.securitydemo.dto.AuthResponse;
+import com.security.securitydemo.entity.Role;
+import com.security.securitydemo.entity.User;
+import com.security.securitydemo.repository.UserRepository;
+import com.security.securitydemo.security.JwtUtil;
+import com.security.securitydemo.security.entity.BlacklistedToken;
+import com.security.securitydemo.security.entity.RefreshToken;
+import com.security.securitydemo.security.repository.BlacklistedTokenRepository;
+import com.security.securitydemo.security.repository.RefreshTokenRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
+import com.security.securitydemo.dto.RefreshRequest;
+
+import java.util.Date;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+	private final JwtUtil jwtUtil;
+
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
+    
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
+
+    // REGISTER
+    public void register(String username, String password) {
+
+        // 1. check if user already exists
+        Optional<User> existingUser = userRepository.findByUsername(username);
+
+        if (existingUser.isPresent()) {
+            throw new RuntimeException("User already exists");
+        }
+
+        // 2. hash password
+        String hashedPassword = passwordEncoder.encode(password);
+
+        // 3. create user
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(hashedPassword);
+        user.setRole(Role.USER);   //setting the role
+
+        // 4. save user
+        userRepository.save(user);
+    }
+
+    // LOGIN
+    public AuthResponse login(String username, String password) {
+
+//        // 1. fetch user
+//        User user = userRepository.findByUsername(username)
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        // 2. verify password
+//        boolean isMatch = passwordEncoder.matches(password, user.getPassword());
+//
+//        if (!isMatch) {
+//            throw new RuntimeException("Invalid password");
+//        }
+//
+//        // 3. return user (later we generate JWT here)
+//        return user;
+    	
+//    	User user = userRepository.findByUsername(username)
+//                .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        if (!passwordEncoder.matches(password, user.getPassword())) {
+//            throw new RuntimeException("Invalid password");
+//        }
+//
+//        // 🔥 generate token instead of returning user
+//        return jwtUtil.generateToken(user.getUsername(),user.getRole().toString());
+    	
+    	 User user = userRepository.findByUsername(username)
+    	            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    	    if (!passwordEncoder.matches(password, user.getPassword())) {
+    	        throw new RuntimeException("Invalid password");
+    	    }
+
+    	    String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+    	    String refreshToken = createRefreshToken(user.getUsername());
+
+    	    return new AuthResponse(accessToken, refreshToken);
+    }
+    
+    public String createRefreshToken(String username) {
+
+        String token = UUID.randomUUID().toString();
+
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(token);
+        refreshToken.setUsername(username);
+        refreshToken.setExpiryDate(
+                new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000)
+        );
+
+        refreshTokenRepository.save(refreshToken);
+
+        return token;
+    }
+    
+    public AuthResponse refresh(RefreshRequest request) {
+
+    	RefreshToken token = refreshTokenRepository.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+
+        // 1. check expiry
+        if (token.getExpiryDate().before(new Date())) {
+            throw new RuntimeException("Refresh token expired");
+        }
+
+        String username = token.getUsername();
+
+        // 🔥 2. DELETE old token
+        refreshTokenRepository.delete(token);
+
+        // 🔥 3. CREATE new refresh token
+        String newRefreshToken = createRefreshToken(username);
+
+        // 🔥 4. FETCH role properly
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String newAccessToken =
+                jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+
+        return new AuthResponse(newAccessToken, newRefreshToken);
+    }
+    
+    public void logout(String token) {
+
+        BlacklistedToken blacklistedToken = new BlacklistedToken();
+
+        blacklistedToken.setToken(token);
+        blacklistedToken.setExpiryDate(
+                jwtUtil.extractExpiration(token)
+        );
+
+        blacklistedTokenRepository.save(blacklistedToken);
+    }
+}
