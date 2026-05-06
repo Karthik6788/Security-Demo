@@ -5,8 +5,10 @@ import com.security.securitydemo.dto.AuthResponse;
 import com.security.securitydemo.dto.LoginRequest;
 import com.security.securitydemo.dto.RefreshRequest;
 import com.security.securitydemo.entity.User;
+import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.RefreshToken;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
+import com.security.securitydemo.service.AuditService;
 import com.security.securitydemo.service.RateLimitService;
 import com.security.securitydemo.service.UserService;
 
@@ -23,8 +25,8 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
-    private RefreshTokenRepository refreshTokenRepository;
     private final RateLimitService rateLimitService;
+    private final AuditService auditService;
 
     // REGISTER
     @PostMapping("/register")
@@ -42,11 +44,17 @@ public class AuthController {
 //        User user = userService.login(loginrequest.getUsername(), loginrequest.getPassword());
 //        return "Login successful for user: " + user.getUsername();
     	String ip = httpRequest.getRemoteAddr();
-    	if (!rateLimitService.isAllowed(ip)) {
+    	if (!rateLimitService.isAllowed(ip,"login")) {   		
+    		auditService.log(
+    			    null,
+    			    AuditAction.RATE_LIMIT_EXCEEDED,
+    			    ip,
+    			    "Too many requests"
+    			);
     	    throw new RuntimeException("Too many requests");
     	}
     	
-    	return userService.login(loginrequest.getUsername(), loginrequest.getPassword());
+    	return userService.login(loginrequest.getUsername(), loginrequest.getPassword(),ip);
     }
     
     @GetMapping("/test")
@@ -55,8 +63,8 @@ public class AuthController {
     }
     
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody RefreshRequest request) {
-        return userService.refresh(request);
+    public AuthResponse refresh(@RequestBody RefreshRequest request,HttpServletRequest httprequest) {
+        return userService.refresh(request,httprequest.getRemoteAddr());
     }
     
     @PostMapping("/logout")
@@ -68,7 +76,7 @@ public class AuthController {
 
             String token = header.substring(7);
 
-            userService.logout(token);
+            userService.logout(token,request.getRemoteAddr());
 
             return "Logged out successfully";
         }

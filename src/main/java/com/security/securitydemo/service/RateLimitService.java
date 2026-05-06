@@ -16,7 +16,10 @@ public class RateLimitService {
     private static final int MAX_REQUESTS = 10;
     private static final long WINDOW_MINUTES = 1;
     
-    public boolean isAllowed(String ip) {
+    public boolean isAllowed(String ip,String endpoint) {
+    	
+    	String key = ip + ":" + endpoint;
+    	ip=key;
 
         LocalDateTime now = LocalDateTime.now();
 

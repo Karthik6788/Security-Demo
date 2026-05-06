@@ -5,10 +5,13 @@ import com.security.securitydemo.entity.Role;
 import com.security.securitydemo.entity.User;
 import com.security.securitydemo.repository.UserRepository;
 import com.security.securitydemo.security.JwtUtil;
+import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.BlacklistedToken;
 import com.security.securitydemo.security.entity.RefreshToken;
 import com.security.securitydemo.security.repository.BlacklistedTokenRepository;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,7 +32,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
-    
+    private final AuditService auditService;
     private final BlacklistedTokenRepository blacklistedTokenRepository;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
@@ -84,7 +87,7 @@ public class UserService {
     }
     
     // LOGIN
-    public AuthResponse login(String username, String password) {
+    public AuthResponse login(String username, String password,String ip) {
 
 //        // 1. fetch user
 //        User user = userRepository.findByUsername(username)
@@ -118,6 +121,12 @@ public class UserService {
     	 				user.setAccountLocked(false);
     	 				user.setFailedAttempts(0);
     	 				user.setLockTime(null);
+    	 				auditService.log(
+    	 					    user.getUsername(),
+    	 					    AuditAction.ACCOUNT_LOCKED,
+    	 					    ip,
+    	 					    "Exceeded failed attempts"
+    	 					);
     	 				userRepository.save(user);
     		    } 
     	 		else {
@@ -126,6 +135,13 @@ public class UserService {
     		}
     	    if (!passwordEncoder.matches(password, user.getPassword())) {
     	    	increaseFailedAttempts(user);
+    	    	
+    	    	auditService.log(
+    	    		    username,
+    	    		    AuditAction.LOGIN_FAILED,
+    	    		    ip,
+    	    		    "Invalid password"
+    	    		);
     	        throw new RuntimeException("Invalid password");
     	    }
 
@@ -135,8 +151,15 @@ public class UserService {
     	    user.setFailedAttempts(0);
     	    user.setAccountLocked(false);
     	    user.setLockTime(null);
-
+    	    
     	    userRepository.save(user);
+    	    
+    	    auditService.log(
+    	    	    username,
+    	    	    AuditAction.LOGIN_SUCCESS,
+    	    	    ip,
+    	    	    "User authenticated"
+    	    	);
     	    return new AuthResponse(accessToken, refreshToken);
     }
     
@@ -156,7 +179,7 @@ public class UserService {
         return token;
     }
     
-    public AuthResponse refresh(RefreshRequest request) {
+    public AuthResponse refresh(RefreshRequest request,String ip) {
 
     	RefreshToken token = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
@@ -180,11 +203,19 @@ public class UserService {
 
         String newAccessToken =
                 jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+        
+        auditService.log(
+        	    username,
+        	    AuditAction.TOKEN_REFRESH,
+        	    ip,
+        	    "Refresh token rotated"
+        	);
 
         return new AuthResponse(newAccessToken, newRefreshToken);
     }
     
-    public void logout(String token) {
+    @Transactional
+    public void logout(String token,String ip) {
 
         BlacklistedToken blacklistedToken = new BlacklistedToken();
 
@@ -192,7 +223,17 @@ public class UserService {
         blacklistedToken.setExpiryDate(
                 jwtUtil.extractExpiration(token)
         );
+        
+        String username=jwtUtil.extractUsername(token);
 
+        auditService.log(
+        	    username,
+        	    AuditAction.LOGOUT,
+        	    ip,
+        	    "Token blacklisted"
+        	);
+        
+        refreshTokenRepository.deleteByUsername(username);
         blacklistedTokenRepository.save(blacklistedToken);
     }
 }
