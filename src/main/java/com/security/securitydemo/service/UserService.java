@@ -7,8 +7,10 @@ import com.security.securitydemo.repository.UserRepository;
 import com.security.securitydemo.security.JwtUtil;
 import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.BlacklistedToken;
+import com.security.securitydemo.security.entity.PasswordResetToken;
 import com.security.securitydemo.security.entity.RefreshToken;
 import com.security.securitydemo.security.repository.BlacklistedTokenRepository;
+import com.security.securitydemo.security.repository.PasswordResetTokenRepository;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
 
 import jakarta.transaction.Transactional;
@@ -34,6 +36,7 @@ public class UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AuditService auditService;
     private final BlacklistedTokenRepository blacklistedTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
@@ -235,5 +238,54 @@ public class UserService {
         
         refreshTokenRepository.deleteByUsername(username);
         blacklistedTokenRepository.save(blacklistedToken);
+    }
+    
+    public String requestPasswordReset(String username) {
+
+        if (userRepository.findByUsername(username).isEmpty()) {
+            return "If account exists, reset link sent";
+        }
+
+        passwordResetTokenRepository.deleteByUsername(username);
+
+        String token = UUID.randomUUID().toString();
+
+        PasswordResetToken resetToken =
+                new PasswordResetToken();
+
+        resetToken.setUsername(username);
+        resetToken.setToken(token);
+        resetToken.setExpiryTime(
+                LocalDateTime.now().plusMinutes(15)
+        );
+
+        passwordResetTokenRepository.save(resetToken);
+
+        return token;
+    }
+    
+    @Transactional
+    public void resetPassword(String token,String newPassword) {
+    	PasswordResetToken resetToken =passwordResetTokenRepository.findByToken(token)
+    		        .orElseThrow(() ->
+    		            new RuntimeException("Invalid reset token"));
+    	
+    	if (resetToken.getExpiryTime()
+    	        .isBefore(LocalDateTime.now())) {
+    		throw new RuntimeException("token expired");
+    	}
+    	
+    	User user = userRepository
+    		    .findByUsername(resetToken.getUsername()).orElseThrow(() ->
+	            new RuntimeException("User Not found"));
+    	
+    	user.setPassword(
+    		    passwordEncoder.encode(newPassword)
+    		);
+    	
+    	userRepository.save(user);
+    	
+    	passwordResetTokenRepository.delete(resetToken);
+    	
     }
 }

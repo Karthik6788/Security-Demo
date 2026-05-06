@@ -2,8 +2,10 @@ package com.security.securitydemo.controller;
 
 
 import com.security.securitydemo.dto.AuthResponse;
+import com.security.securitydemo.dto.ForgotPasswordRequest;
 import com.security.securitydemo.dto.LoginRequest;
 import com.security.securitydemo.dto.RefreshRequest;
+import com.security.securitydemo.dto.ResetPasswordRequest;
 import com.security.securitydemo.entity.User;
 import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.RefreshToken;
@@ -82,5 +84,22 @@ public class AuthController {
         }
 
         throw new RuntimeException("Token missing");
+    }
+    
+    
+    @PostMapping("/forgot-password")
+    public String forgotPassword(
+            @RequestBody ForgotPasswordRequest request
+    ) {
+        return userService.requestPasswordReset(
+                request.getUsername()
+        );
+    }
+    
+    @PostMapping("/reset-password")
+    public String resetPassword(@RequestBody ResetPasswordRequest request) {
+    	userService.resetPassword(request.getToken(),request.getNewPassword());
+    	return "Password reset successful";
+    			
     }
 }
