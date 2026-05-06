@@ -7,6 +7,7 @@ import com.security.securitydemo.dto.RefreshRequest;
 import com.security.securitydemo.entity.User;
 import com.security.securitydemo.security.entity.RefreshToken;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
+import com.security.securitydemo.service.RateLimitService;
 import com.security.securitydemo.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,7 @@ public class AuthController {
 
     private final UserService userService;
     private RefreshTokenRepository refreshTokenRepository;
+    private final RateLimitService rateLimitService;
 
     // REGISTER
     @PostMapping("/register")
@@ -34,11 +36,15 @@ public class AuthController {
 
     // LOGIN
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest loginrequest) {
+    public AuthResponse login(@RequestBody LoginRequest loginrequest,HttpServletRequest httpRequest) {
 
 //    	System.out.print(loginrequest.getUsername());
 //        User user = userService.login(loginrequest.getUsername(), loginrequest.getPassword());
 //        return "Login successful for user: " + user.getUsername();
+    	String ip = httpRequest.getRemoteAddr();
+    	if (!rateLimitService.isAllowed(ip)) {
+    	    throw new RuntimeException("Too many requests");
+    	}
     	
     	return userService.login(loginrequest.getUsername(), loginrequest.getPassword());
     }
