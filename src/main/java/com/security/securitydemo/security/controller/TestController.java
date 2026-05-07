@@ -1,11 +1,11 @@
-package com.security.securitydemo.controller;
+package com.security.securitydemo.security.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.security.securitydemo.security.AdminOnly;
+import com.security.securitydemo.security.util.AdminOnly;
 
 import lombok.RequiredArgsConstructor;
 

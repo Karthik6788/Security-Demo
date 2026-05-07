@@ -1,4 +1,4 @@
-package com.security.securitydemo.security;
+package com.security.securitydemo.security.util;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 

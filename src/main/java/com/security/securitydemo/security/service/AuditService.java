@@ -1,4 +1,4 @@
-package com.security.securitydemo.service;
+package com.security.securitydemo.security.service;
 
 import java.time.LocalDateTime;
 

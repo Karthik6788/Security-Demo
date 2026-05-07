@@ -1,4 +1,4 @@
-package com.security.securitydemo.service;
+package com.security.securitydemo.security.service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
-import com.security.securitydemo.model.RateLimitInfo;
+import com.security.securitydemo.security.model.RateLimitInfo;
 
 @Service
 public class RateLimitService {

@@ -1,24 +1,24 @@
-package com.security.securitydemo.service;
+package com.security.securitydemo.security.service;
 
-import com.security.securitydemo.dto.AuthResponse;
-import com.security.securitydemo.entity.Role;
-import com.security.securitydemo.entity.User;
-import com.security.securitydemo.repository.UserRepository;
-import com.security.securitydemo.security.JwtUtil;
+import com.security.securitydemo.security.dto.AuthResponse;
+import com.security.securitydemo.security.dto.RefreshRequest;
 import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.BlacklistedToken;
 import com.security.securitydemo.security.entity.PasswordResetToken;
 import com.security.securitydemo.security.entity.RefreshToken;
+import com.security.securitydemo.security.entity.Role;
+import com.security.securitydemo.security.entity.User;
 import com.security.securitydemo.security.repository.BlacklistedTokenRepository;
 import com.security.securitydemo.security.repository.PasswordResetTokenRepository;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
+import com.security.securitydemo.security.repository.UserRepository;
+import com.security.securitydemo.security.util.JwtUtil;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
-import com.security.securitydemo.dto.RefreshRequest;
 
 import java.time.LocalDateTime;
 import java.util.Date;

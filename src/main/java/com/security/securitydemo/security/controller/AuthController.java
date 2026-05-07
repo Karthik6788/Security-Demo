@@ -1,18 +1,18 @@
-package com.security.securitydemo.controller;
+package com.security.securitydemo.security.controller;
 
 
-import com.security.securitydemo.dto.AuthResponse;
-import com.security.securitydemo.dto.ForgotPasswordRequest;
-import com.security.securitydemo.dto.LoginRequest;
-import com.security.securitydemo.dto.RefreshRequest;
-import com.security.securitydemo.dto.ResetPasswordRequest;
-import com.security.securitydemo.entity.User;
+import com.security.securitydemo.security.dto.AuthResponse;
+import com.security.securitydemo.security.dto.ForgotPasswordRequest;
+import com.security.securitydemo.security.dto.LoginRequest;
+import com.security.securitydemo.security.dto.RefreshRequest;
+import com.security.securitydemo.security.dto.ResetPasswordRequest;
 import com.security.securitydemo.security.entity.AuditAction;
 import com.security.securitydemo.security.entity.RefreshToken;
+import com.security.securitydemo.security.entity.User;
 import com.security.securitydemo.security.repository.RefreshTokenRepository;
-import com.security.securitydemo.service.AuditService;
-import com.security.securitydemo.service.RateLimitService;
-import com.security.securitydemo.service.UserService;
+import com.security.securitydemo.security.service.AuditService;
+import com.security.securitydemo.security.service.RateLimitService;
+import com.security.securitydemo.security.service.UserService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;

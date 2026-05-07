@@ -1,4 +1,4 @@
-package com.security.securitydemo.config;
+package com.security.securitydemo.security.config;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.security.securitydemo.security.JwtFilter;
+import com.security.securitydemo.security.util.JwtFilter;
 
 
 @Configuration
