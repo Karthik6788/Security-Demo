@@ -28,4 +28,10 @@ public class RefreshToken {
     private String username;
 
     private Date expiryDate;
+    
+    private boolean used;
+    
+    public boolean isUsed() {
+    	return used;
+    }
 }

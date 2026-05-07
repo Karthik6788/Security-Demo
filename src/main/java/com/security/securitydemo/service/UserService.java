@@ -182,6 +182,7 @@ public class UserService {
         return token;
     }
     
+    @Transactional(dontRollbackOn  = RuntimeException.class)
     public AuthResponse refresh(RefreshRequest request,String ip) {
 
     	RefreshToken token = refreshTokenRepository.findByToken(request.getRefreshToken())
@@ -192,10 +193,27 @@ public class UserService {
             throw new RuntimeException("Refresh token expired");
         }
 
+        if (token.isUsed()) {
+            refreshTokenRepository.deleteByUsername(token.getUsername());
+
+            auditService.log(
+                    token.getUsername(),
+                    AuditAction.TOKEN_REUSE_DETECTED,
+                    ip,
+                    "Refresh token replay attack suspected"
+            );
+
+            throw new RuntimeException(
+                    "Refresh token reuse detected. Please login again."
+            );
+        }
+        
         String username = token.getUsername();
 
-        // 🔥 2. DELETE old token
-        refreshTokenRepository.delete(token);
+        token.setUsed(true);
+        refreshTokenRepository.save(token);
+//        // 🔥 2. DELETE old token
+//        refreshTokenRepository.delete(token);
 
         // 🔥 3. CREATE new refresh token
         String newRefreshToken = createRefreshToken(username);
@@ -205,7 +223,10 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String newAccessToken =
-                jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+                jwtUtil.generateToken(
+                        user.getUsername(),
+                        user.getRole().name()
+                );
         
         auditService.log(
         	    username,
