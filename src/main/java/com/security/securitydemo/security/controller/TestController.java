@@ -39,4 +39,11 @@ public class TestController {
     public String getProfile(@PathVariable String username) {
         return "Profile of " + username;
     }
+    
+    
+    @GetMapping("/admintest/userDeleteAuthrize")
+    @PreAuthorize("hasAuthority('USER_DELETE')")
+    public String adminUserDelete() {
+    	return "this will be accessed only by the admin";
+    }
 }
