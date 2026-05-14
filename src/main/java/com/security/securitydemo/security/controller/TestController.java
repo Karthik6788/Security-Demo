@@ -46,4 +46,11 @@ public class TestController {
     public String adminUserDelete() {
     	return "this will be accessed only by the admin";
     }
+    
+    
+    @GetMapping("/user/profile/{userId}")
+    @PreAuthorize("hasPermission(#userId, 'PROFILE_UPDATE')")
+    public String updateProfile(@PathVariable Long userId) {
+        return "allowed";
+    }
 }

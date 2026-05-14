@@ -13,7 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import com.security.securitydemo.security.util.JwtFilter;
 
 
@@ -22,9 +23,11 @@ import com.security.securitydemo.security.util.JwtFilter;
 public class SecurityConfig {
 
 	private JwtFilter jwtFilter;
+	private CustomPermissionEvaluator permissionEvaluator;
 	
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter,CustomPermissionEvaluator permissionEvaluator) {
         this.jwtFilter = jwtFilter;
+        this.permissionEvaluator=permissionEvaluator;
     }
 	
     @Bean
@@ -75,5 +78,17 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+    
+    
+    @Bean
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+
+        DefaultMethodSecurityExpressionHandler handler =
+                new DefaultMethodSecurityExpressionHandler();
+
+        handler.setPermissionEvaluator(permissionEvaluator);
+
+        return handler;
     }
 }
