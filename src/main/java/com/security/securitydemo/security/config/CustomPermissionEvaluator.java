@@ -8,16 +8,25 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import com.security.securitydemo.security.entity.ProfileAccess;
 import com.security.securitydemo.security.entity.User;
+import com.security.securitydemo.security.repository.ProfileAccessRepository;
 import com.security.securitydemo.security.repository.UserRepository;
 
 @Component
-public class CustomPermissionEvaluator implements PermissionEvaluator {
+public class CustomPermissionEvaluator
+        implements PermissionEvaluator {
 
     private final UserRepository userRepository;
 
-    public CustomPermissionEvaluator(UserRepository userRepository) {
+    private final ProfileAccessRepository profileAccessRepository;
+
+    public CustomPermissionEvaluator(
+            UserRepository userRepository,
+            ProfileAccessRepository profileAccessRepository
+    ) {
         this.userRepository = userRepository;
+        this.profileAccessRepository = profileAccessRepository;
     }
 
     @Override
@@ -31,41 +40,49 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             return false;
         }
 
-        boolean isAdmin = authentication.getAuthorities()
-                .stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(auth -> auth.equals("ROLE_ADMIN"));
+        String authenticatedUsername =
+                authentication.getName();
 
-        if (isAdmin) {
+        String requiredPermission =
+                permission.toString();
+
+        Long targetProfileId =
+                Long.valueOf(targetDomainObject.toString());
+
+        if (isAdmin(authentication)) {
             return true;
         }
 
-        String requiredPermission = permission.toString();
+        if (isOwner(authenticatedUsername, targetProfileId)) {
+            return true;
+        }
 
-        if ("PROFILE_UPDATE".equals(requiredPermission)) {
-
-            Long targetUserId =
-                    Long.valueOf(targetDomainObject.toString());
-
-            String authenticatedUsername =
-                    authentication.getName();
-
-            return isOwner(
-                    authenticatedUsername,
-                    targetUserId
-            );
+        if (hasAclPermission(
+                authenticatedUsername,
+                targetProfileId,
+                requiredPermission
+        )) {
+            return true;
         }
 
         return false;
     }
 
+    private boolean isAdmin(Authentication authentication) {
+
+        return authentication.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(auth -> auth.equals("ROLE_ADMIN"));
+    }
+
     private boolean isOwner(
             String authenticatedUsername,
-            Long targetUserId
+            Long targetProfileId
     ) {
 
         Optional<User> optionalUser =
-                userRepository.findById(targetUserId);
+                userRepository.findById(targetProfileId);
 
         if (optionalUser.isEmpty()) {
             return false;
@@ -77,6 +94,23 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
                 .equals(authenticatedUsername);
     }
 
+    private boolean hasAclPermission(
+            String username,
+            Long targetProfileId,
+            String permission
+    ) {
+
+        Optional<ProfileAccess> access =
+                profileAccessRepository
+                        .findByUsernameAndTargetProfileIdAndPermission(
+                                username,
+                                targetProfileId,
+                                permission
+                        );
+
+        return access.isPresent();
+    }
+
     @Override
     public boolean hasPermission(
             Authentication authentication,
@@ -84,6 +118,11 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             String targetType,
             Object permission
     ) {
-        return hasPermission(authentication, targetId, permission);
+
+        return hasPermission(
+                authentication,
+                targetId,
+                permission
+        );
     }
 }
